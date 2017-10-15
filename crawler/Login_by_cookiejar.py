@@ -32,7 +32,6 @@ def login_csdn():
             print("不传入参数第一次对登陆页面发起请求获取隐藏参数 失败")
             exit()
 
-    # h = opener.open('https://passport.csdn.net').read().decode("utf8")  #不传入参数第一次对登陆页面发起请求获取隐藏参数
     patten1 = re.compile(r'name="lt" value="(.*?)"')        #利用正则表达式获取隐藏参数lt
     patten2 = re.compile(r'name="execution" value="(.*?)"') ##利用正则表达式获取隐藏参数execution
     b1 = patten1.search(h)      #匹配页面
