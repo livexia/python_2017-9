@@ -7,6 +7,7 @@ import http.cookiejar
 
 def login_csdn():
     proxy_handler = urllib.request.ProxyHandler({'http': 'http://127.0.0.1:1080/'}) #用户代理
+    #将cookie添加到opener中，使得所有请求都带上获取到的cookie
     cookie = http.cookiejar.CookieJar()
     cookieproc = urllib.request.HTTPCookieProcessor(cookie)
     opener = urllib.request.build_opener(cookieproc, proxy_handler)
