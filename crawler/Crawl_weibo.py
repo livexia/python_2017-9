@@ -18,21 +18,30 @@ class Sina_login():
         self.pubkey = None
         self.rsakv = None
         self.post_data = {}
-        self.headers = []
+        self.headers = [('Origin', 'https://login.sina.com.cn'),
+                        ('User-Agent',
+                         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:56.0) Gecko/20100101 Firefox/56.0'),
+                        ('Referer', 'https://weibo.com/')
+                        ]
         self.proxy_url = {'http': 'http://127.0.0.1:1080/'}  # 用户代理地址
         self.cookie = None #http.cookiejar.CookieJar()
         self.opener = None
+        self.cookie = http.cookiejar.CookieJar()
+        cookieproc = urllib.request.HTTPCookieProcessor(self.cookie)
+        # proxy_handler = urllib.request.ProxyHandler(self.proxy_url)
+        self.opener = urllib.request.build_opener(cookieproc)#, proxy_handler)
+        self.opener.addheaders = self.headers
 
     def get_data(self, username, password):
-        self.headers = [('Origin','https://login.sina.com.cn'),
-                        ('User-Agent','Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:56.0) Gecko/20100101 Firefox/56.0'),
-                        ('Referer','https://weibo.com/')
-                        ]
+        # self.headers = [('Origin','https://login.sina.com.cn'),
+        #                 ('User-Agent','Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:56.0) Gecko/20100101 Firefox/56.0'),
+        #                 ('Referer','https://weibo.com/')
+        #                 ]
         self.username = urllib.parse.quote_plus(username)
         # 用户名base64加密
         self.username = base64.b64encode(self.username.encode("utf-8"))
         self.username = self.username.decode()
-
+        print(self.username)
         self.password = password
         pre_login_params = {
             "entry": "weibo",
@@ -43,25 +52,19 @@ class Sina_login():
             "su": self.username,
             "_": int(time.time() * 1000),
         }
+        pre_login_params = urllib.parse.urlencode(pre_login_params).encode('UTF8')
+        pre_login = None
         url = 'https://login.sina.com.cn/sso/prelogin.php'
-        self.opener = urllib.request.build_opener() #预获取数据不加cookie，不加代理
-        self.opener.addheaders = self.headers
-        while 1:
-            count = 0
-            try:
-                pre_login = self.opener.open(url, pre_login_params).read().decode("utf8")  # 不传入参数第一次对登陆页面发起请求获取隐藏参数
-            except urllib.error.HTTPError as e:
-                print("Error Code: ", e.code)
-                count += 1
-            except urllib.error.URLError as e:
-                print("Reason: ", e.reason)
-                count += 1
-            else:
-                print("获取prelogin.php 成功")
-                break
-            if count == 5:  # 当错误计数达到五个时退出循环
-                print("获取prelogin.php 失败")
-                exit()
+        # opener = urllib.request.build_opener() #预获取数据不加cookie，不加代理
+        # opener.addheaders = self.headers
+        try:
+            pre_login = self.opener.open(url, pre_login_params).read().decode("utf8")
+        except urllib.error.HTTPError as e:
+            print("Error Code: ", e.code)
+        except urllib.error.URLError as e:
+            print("Reason: ", e.reason)
+        else:
+            print("获取prelogin.php 成功")
         jsonStr = re.findall(r'\((\{.*?\})\)', pre_login)[0]
         data = json.loads(jsonStr)
         servertime = data["servertime"]
@@ -82,7 +85,6 @@ class Sina_login():
         self.nonce = nonce
         self.pubkey = pubkey
         self.rsakv = rsakv
-
         self.post_data = {
             "cdult": "3",
             "domain": "sina.com.cn",
@@ -101,7 +103,6 @@ class Sina_login():
             "useticket": "0",
             "vsnf": "1"
         }
-
         return self
 
     def login(self):
@@ -109,34 +110,29 @@ class Sina_login():
         password = input("输入密码：")
         self.get_data(username,password)
         login_url = r'https://login.sina.com.cn/sso/login.php?client=ssologin.js(v1.4.19)'
-        self.cookie = http.cookiejar.CookieJar()
-        cookieproc = urllib.request.HTTPCookieProcessor(self.cookie)
-        proxy_handler = urllib.request.ProxyHandler(self.proxy_url)
-        self.opener = urllib.request.build_opener(cookieproc, proxy_handler)
-        self.opener.addheaders = self.headers
-        post_data = urllib.parse.urlencode(self.post_data).encode('UTF8')
-        print(post_data)
-
-        while 1:
-            count = 0
-            try:
-                response = self.opener.open('https://login.sina.com.cn/sso/login.php?client=ssologin.js(v1.4.19)', post_data)  # 登陆页面传入post参数，成功登陆，保留cookie
-            except urllib.error.HTTPError as e:
-                print("Error Code: ", e.code)
-                count += 1
-            except urllib.error.URLError as e:
-                print("Reason: ", e.reason)
-                count += 1
+        # self.cookie = http.cookiejar.CookieJar()
+        # cookieproc = urllib.request.HTTPCookieProcessor(self.cookie)
+        # proxy_handler = urllib.request.ProxyHandler(self.proxy_url)
+        # self.opener = urllib.request.build_opener(cookieproc, proxy_handler)
+        # self.opener.addheaders = self.headers
+        post_data = urllib.parse.urlencode(self.post_data).encode('utf-8')
+        try:
+            response = self.opener.open(login_url, post_data).read().decode("utf8")  # 登陆页面传入post参数，成功登陆，保留cookie
+        except urllib.error.HTTPError as e:
+            print("Error Code: ", e.code)
+        except urllib.error.URLError as e:
+            print("Reason: ", e.reason)
+        else:
+            data = json.loads(response)
+            if data["retcode"] == "0":
+                 print("登陆 成功")
+                 return True
             else:
-                print(response.read().decode('utf-8', 'ignore'))
-                print("登陆 成功")
-                break
-            if count == 5:  # 当错误计数达到五个时退出循环
-                print("登陆 失败")
-                exit()
+                print("登陆失败 原因：" + data["reason"])
+                return False
 
     def openurl(self, url, post_data = None):
-        url_content = self.opener.open(url, post_data).read().decode('utf-8').strip()
+        url_content = self.opener.open(url, post_data).read()
         print(url_content)
 
 
@@ -148,5 +144,5 @@ class Sina_login():
 
 
 test = Sina_login()
-test.login()
-test.openurl('https://weibo.cn/5643396361/info')   #打开我的个人信息页面验证登陆是否成功
+if test.login():
+    test.openurl('https://weibo.cn/5643396361/info')   #打开我的个人信息页面验证登陆是否成功
