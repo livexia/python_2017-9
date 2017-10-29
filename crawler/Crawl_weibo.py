@@ -1,148 +1,142 @@
-import re
-import json
-import base64
 import rsa
 import binascii
-import time
-import urllib.parse
-import urllib.request
-import urllib.error
+import base64
+import re
+import json
 import http.cookiejar
+import urllib.request
+import urllib.parse
+import requests
 
-class Sina_login():
-    def __init__(self, username = None, password = None):
-        self.username = username
-        self.password = password
-        self.servertime = None
-        self.nonce = None
-        self.pubkey = None
-        self.rsakv = None
-        self.post_data = {}
-        self.headers = [('Origin', 'https://login.sina.com.cn'),
-                        ('User-Agent',
-                         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:56.0) Gecko/20100101 Firefox/56.0'),
-                        ('Referer', 'https://weibo.com/')
-                        ]
-        self.proxy_url = {'http': 'http://127.0.0.1:1080/'}  # 用户代理地址
-        self.cookie = None #http.cookiejar.CookieJar()
-        self.opener = None
-        self.cookie = http.cookiejar.CookieJar()
-        cookieproc = urllib.request.HTTPCookieProcessor(self.cookie)
-        # proxy_handler = urllib.request.ProxyHandler(self.proxy_url)
-        self.opener = urllib.request.build_opener(cookieproc)#, proxy_handler)
-        self.opener.addheaders = self.headers
 
-    def get_data(self, username, password):
-        # self.headers = [('Origin','https://login.sina.com.cn'),
-        #                 ('User-Agent','Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:56.0) Gecko/20100101 Firefox/56.0'),
-        #                 ('Referer','https://weibo.com/')
-        #                 ]
-        self.username = urllib.parse.quote_plus(username)
-        # 用户名base64加密
-        self.username = base64.b64encode(self.username.encode("utf-8"))
-        self.username = self.username.decode()
-        print(self.username)
-        self.password = password
-        pre_login_params = {
-            "entry": "weibo",
-            "callback": "sinaSSOController.preloginCallBack",
-            "rsakt": "mod",
-            "checkpin": "1",
-            "client": "ssologin.js(v1.4.19)",
-            "su": self.username,
-            "_": int(time.time() * 1000),
-        }
-        pre_login_params = urllib.parse.urlencode(pre_login_params).encode('UTF8')
-        pre_login = None
-        url = 'https://login.sina.com.cn/sso/prelogin.php'
-        # opener = urllib.request.build_opener() #预获取数据不加cookie，不加代理
-        # opener.addheaders = self.headers
-        try:
-            pre_login = self.opener.open(url, pre_login_params).read().decode("utf8")
-        except urllib.error.HTTPError as e:
-            print("Error Code: ", e.code)
-        except urllib.error.URLError as e:
-            print("Reason: ", e.reason)
+def login1(username, password):
+    print('这里是login1')
+    username = base64.b64encode(username.encode('utf-8')).decode('utf-8')
+    postData = {
+        "entry": "sso",
+        "gateway": "1",
+        "from": "null",
+        "savestate": "30",
+        "useticket": "0",
+        "pagerefer": "",
+        "vsnf": "1",
+        "su": username,
+        "service": "sso",
+        "sp": password,
+        "sr": "1440*900",
+        "encoding": "UTF-8",
+        "cdult": "3",
+        "domain": "sina.com.cn",
+        "prelt": "0",
+        "returntype": "TEXT",
+    }
+    loginURL = r'https://login.sina.com.cn/sso/login.php?client=ssologin.js(v1.4.19)'
+    session = requests.Session()
+    res = session.post(loginURL, data = postData)
+    jsonStr = res.content.decode('gbk')
+    info = json.loads(jsonStr)
+    print(info)
+    if info["retcode"] == "0":
+        res1 = session.get(info['crossDomainUrlList'][0]).content.decode('gb2312')
+        jsonStr = re.findall(r'\((\{.*?\})\)', res1)[0]
+        login_data = json.loads(jsonStr)
+        if login_data['result']:
+            print("登录成功！")
+            # 把cookies添加到headers中
+            cookies = session.cookies.get_dict()
+            cookies = [key + "=" + value for key, value in cookies.items()]
+            cookies = "; ".join(cookies)
+            session.headers["cookie"] = cookies
         else:
-            print("获取prelogin.php 成功")
-        jsonStr = re.findall(r'\((\{.*?\})\)', pre_login)[0]
-        data = json.loads(jsonStr)
-        servertime = data["servertime"]
-        nonce = data["nonce"]
-        pubkey = data["pubkey"]
-        rsakv = data["rsakv"]
+            print("登陆失败")
+    else:
+        print("登录失败，原因： %s" % info["reason"])
+    return session
 
-        #密码rsa加密
-        rsaPubkeyHead = int(pubkey, 16) #pubkey十六进制转十进制
-        rsaPubkeyTail = int('10001', 16) #'10001'十六进制转十进制
-        rsaPubkey = rsa.PublicKey(rsaPubkeyHead, rsaPubkeyTail)
-        password = str(servertime) + '\t' + str(nonce) + '\n' + str(password)
-        password = rsa.encrypt(password.encode("utf-8"),rsaPubkey)
-        password = binascii.b2a_hex(password)   #最后的密文以十六进制输出
 
-        self.password = password.decode()
-        self.servertime = servertime
-        self.nonce = nonce
-        self.pubkey = pubkey
-        self.rsakv = rsakv
-        self.post_data = {
-            "cdult": "3",
-            "domain": "sina.com.cn",
-            "encoding": "UTF-8",
-            "entry": "sso",
-            "from": "null",
-            "gateway": "1",
-            "pagerefer": "",
-            "prelt": "0",
-            "returntype": "TEXT",
-            "savestate": "30",
-            "service": "sso",
-            "sp": self.password,
-            "sr": "1920*1080",
-            "su": self.username,
-            "useticket": "0",
-            "vsnf": "1"
-        }
-        return self
+def encode_password(password, servertime, nonce, pubkey):
+    rsaPubkey = int(pubkey, 16)
+    RSAKey = rsa.PublicKey(rsaPubkey, 65537) #创建公钥
+    codeStr = str(servertime) + '\t' + str(nonce) + '\n' + str(password) #根据js拼接方式构造明文
+    pwd = rsa.encrypt(codeStr.encode('utf-8'), RSAKey)  #使用rsa进行加密
+    return binascii.b2a_hex(pwd)  #将加密信息转换为16进制。
 
-    def login(self):
-        username = input("输入用户名：")
-        password = input("输入密码：")
-        self.get_data(username,password)
-        login_url = r'https://login.sina.com.cn/sso/login.php?client=ssologin.js(v1.4.19)'
-        # self.cookie = http.cookiejar.CookieJar()
-        # cookieproc = urllib.request.HTTPCookieProcessor(self.cookie)
-        # proxy_handler = urllib.request.ProxyHandler(self.proxy_url)
-        # self.opener = urllib.request.build_opener(cookieproc, proxy_handler)
-        # self.opener.addheaders = self.headers
-        post_data = urllib.parse.urlencode(self.post_data).encode('utf-8')
-        try:
-            response = self.opener.open(login_url, post_data).read().decode("utf8")  # 登陆页面传入post参数，成功登陆，保留cookie
-        except urllib.error.HTTPError as e:
-            print("Error Code: ", e.code)
-        except urllib.error.URLError as e:
-            print("Reason: ", e.reason)
+def encode_username(username):
+    su = base64.b64encode(username.encode(encoding="utf-8"))
+    return su
+
+def login2(username, password):
+    print('这里是login2')
+    cookie = http.cookiejar.CookieJar()
+    cookieproc = urllib.request.HTTPCookieProcessor(cookie)
+    opener = urllib.request.build_opener(cookieproc)
+    opener.addheaders = [("User-Agent", "Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.71 Safari/537.36"),
+                         ("Content-Type", "application/x-www-form-urlencoded"),
+                         ("Host", "login.sina.com.cn"),
+                         ("Origin", "http://open.weibo.com"),
+                         ("Referer", "http://open.weibo.com/wiki/%E6%8E%88%E6%9D%83%E6%9C%BA%E5%88%B6%E8%AF%B4%E6%98%8E"),
+                         ("Upgrade-Insecure-Requests", "1")
+                         ]
+
+    su = encode_username(username)
+
+    url_prelogin = 'https://login.sina.com.cn/sso/prelogin.php?entry=account&callback=sinaSSOController.preloginCallBack&su=MTU5Njg4MDE2NDY%3D&rsakt=mod&client=ssologin.js(v1.4.15)'
+    url_login = 'http://login.sina.com.cn/sso/login.php?client=ssologin.js'
+
+    resp_prelogin = opener.open(url_prelogin).read().decode('utf-8')
+    jsonStr = re.findall(r'\((\{.*?\})\)', resp_prelogin)[0]
+    data = json.loads(jsonStr)
+    sp = encode_password(password,data['servertime'],data['nonce'],data['pubkey'])
+
+    postdata = {
+        'entry': 'weibo',
+        'gateway': '1',
+        'from': '',
+        'savestate': '7',
+        'userticket': '1',
+        'ssosimplelogin': '1',
+        'vsnf': '1',
+        'vsnval': '',
+        'su': su,
+        'service': 'miniblog',
+        'servertime': data['servertime'],
+        'nonce': data['nonce'],
+        'pwencode': 'rsa2',
+        'sp': sp,
+        'encoding': 'UTF-8',
+        'url': 'http://weibo.com/ajaxlogin.php?framelogin=1&callback=parent.sinaSSOController.feedBackUrlCallBack',
+        'returntype': 'META',
+        'rsakv': data['rsakv'],
+    }
+
+    resp_login = opener.open(url_login, urllib.parse.urlencode(postdata).encode('utf-8')).read().decode('gbk')
+    if re.findall(r"reason\=(.*?)\"", resp_login):
+        print('登陆失败：' +
+              urllib.parse.unquote_to_bytes(re.findall(r"reason\=(.*?)\"", resp_login)[1]).decode('gb2312') +
+              '\n错误代码：' +
+                re.findall(r"retcode\=(.*?)\&", resp_login)[0])
+    else:
+        info = re.findall(r"location\.replace\(\'(.*?)\'", resp_login)[0]
+        resp_my = opener.open(info).read().decode('gb2312')
+        jsonStr = re.findall(r'\((\{.*?\})\)', resp_my)[0]
+        login_data = json.loads(jsonStr)
+        if login_data['result']:
+            print("登录成功！")
+            print('用户唯一id：' +
+                  login_data['userinfo']['uniqueid'])
         else:
-            data = json.loads(response)
-            if data["retcode"] == "0":
-                 print("登陆 成功")
-                 return True
-            else:
-                print("登陆失败 原因：" + data["reason"])
-                return False
+            print("登录失败！")
+    passport_url = 'https://weibo.com/ajaxlogin.php?framelogin=1&callback=parent.sinaSSOController.feedBackUrlCallBack&sudaref=weibo.com'
+    wap_url = 'http://weibo.cn/5643396361/info'
 
-    def openurl(self, url, post_data = None):
-        url_content = self.opener.open(url, post_data).read()
-        print(url_content)
+    return opener
 
+if __name__ == '__main__':
+    print('请登录微博！')
+    # username = input('输入账号：')
+    # password = input('输入密码：')
 
+    username = '15968801646'
+    password = 'xgc12345'
 
-
-
-
-
-
-
-test = Sina_login()
-if test.login():
-    test.openurl('https://weibo.cn/5643396361/info')   #打开我的个人信息页面验证登陆是否成功
+    opener = login1(username,password)
