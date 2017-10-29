@@ -126,17 +126,10 @@ def login2(username, password):
                   login_data['userinfo']['uniqueid'])
         else:
             print("登录失败！")
-    passport_url = 'https://weibo.com/ajaxlogin.php?framelogin=1&callback=parent.sinaSSOController.feedBackUrlCallBack&sudaref=weibo.com'
-    wap_url = 'http://weibo.cn/5643396361/info'
-
     return opener
 
 if __name__ == '__main__':
     print('请登录微博！')
-    # username = input('输入账号：')
-    # password = input('输入密码：')
-
-    username = '15968801646'
-    password = 'xgc12345'
-
+    username = input('输入账号：')
+    password = input('输入密码：')
     opener = login1(username,password)
