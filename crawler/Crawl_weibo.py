@@ -29,13 +29,12 @@ def login1(username, password):
         "domain": "sina.com.cn",
         "prelt": "0",
         "returntype": "TEXT",
-    }
+    }   #请求的表单数据
     loginURL = r'https://login.sina.com.cn/sso/login.php?client=ssologin.js(v1.4.19)'
     session = requests.Session()
     res = session.post(loginURL, data = postData)
     jsonStr = res.content.decode('gbk')
     info = json.loads(jsonStr)
-    print(info)
     if info["retcode"] == "0":
         res1 = session.get(info['crossDomainUrlList'][0]).content.decode('gb2312')
         jsonStr = re.findall(r'\((\{.*?\})\)', res1)[0]
@@ -76,7 +75,7 @@ def login2(username, password):
                          ("Origin", "http://open.weibo.com"),
                          ("Referer", "http://open.weibo.com/wiki/%E6%8E%88%E6%9D%83%E6%9C%BA%E5%88%B6%E8%AF%B4%E6%98%8E"),
                          ("Upgrade-Insecure-Requests", "1")
-                         ]
+                         ]  #头
 
     su = encode_username(username)
 
@@ -132,4 +131,4 @@ if __name__ == '__main__':
     print('请登录微博！')
     username = input('输入账号：')
     password = input('输入密码：')
-    opener = login1(username,password)
+    opener = login2(username,password)
