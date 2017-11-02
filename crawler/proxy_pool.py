@@ -16,11 +16,12 @@ def getHtml():
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US; rv:1.9.1.6) Gecko/20091201 Firefox/3.5.6'
     }
+    useable_ip = []
     while retry_count > 0:
         try:
             # 使用代理访问
             html = requests.get('http://ident.me/', proxies={"http": "http://{}".format(proxy)}, headers = headers, timeout=20, verify=False)
-            print(html.content.decode('utf-8'))
+            print("可用IP列表：" + html.content.decode('utf-8'))
             return html
         except Exception as e:
             print("错误原因：{}".format(e))
