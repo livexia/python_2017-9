@@ -21,7 +21,8 @@ def getHtml():
             # 使用代理访问
             html = requests.get('http://ident.me/', proxies={"http": "http://{}".format(proxy)}, headers = headers, timeout=20, verify=False)
             return html
-        except Exception:
+        except Exception as e:
+            print("错误原因：{}".format(e))
             retry_count -= 1
     # 出错5次, 删除代理池中代理
     delete_proxy(proxy)
@@ -35,5 +36,5 @@ if __name__ == '__main__':
     while 1:
         getHtml()
         time.sleep(10)
-        if '"useful_proxy": 120' in get_proxy_pool_status():
+        if '"useful_proxy": 0' in get_proxy_pool_status():
             break
