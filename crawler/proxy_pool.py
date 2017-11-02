@@ -9,7 +9,7 @@ def get_proxy():
     return requests.get("http://115.159.124.234:32769/get/").content.decode()
 
 def delete_proxy(proxy):
-    requests.get("http://115.159.124.234:32769/?proxy={}".format(proxy))
+    requests.get("http://115.159.124.234:32769/delete/?proxy={}".format(proxy))
 
 def getHtml():
     retry_count = 3
