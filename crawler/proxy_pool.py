@@ -37,6 +37,6 @@ if __name__ == '__main__':
     while 1:
         getHtml()
         time.sleep(10)
-        print("剩余可用IP数：" + str(json.loads(get_proxy_pool_status())))
+        print("剩余可用IP数：" + str(json.loads(get_proxy_pool_status())["useful_proxy"]))
         if '"useful_proxy": 0' in get_proxy_pool_status():
             break
