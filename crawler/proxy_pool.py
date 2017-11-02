@@ -20,6 +20,7 @@ def getHtml():
         try:
             # 使用代理访问
             html = requests.get('http://ident.me/', proxies={"http": "http://{}".format(proxy)}, headers = headers, timeout=20, verify=False)
+            print(html.content.decode('utf-8'))
             return html
         except Exception as e:
             print("错误原因：{}".format(e))
