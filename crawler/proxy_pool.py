@@ -25,8 +25,8 @@ def getHtml():
             print("可用IP：" + html.content.decode('utf-8'))
             return html
         except Exception as e:
-            e = re.findall(r"\(Caused by (.*?)\(", str(e))[0]
-            print("错误原因：{}".format(e))
+            # e = re.findall(r"\(Caused by (.*?)\(", str(e))[0]
+            # print("错误原因：{}".format(e))
             retry_count -= 1
     # 出错3次, 删除代理池中代理
     delete_proxy(proxy)
