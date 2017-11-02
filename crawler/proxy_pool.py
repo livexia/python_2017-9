@@ -3,6 +3,7 @@
 import requests
 import time
 import json
+import re
 
 def get_proxy():
     return requests.get("http://115.159.124.234:32769/get/").content.decode()
@@ -24,9 +25,10 @@ def getHtml():
             print("可用IP列表：" + html.content.decode('utf-8'))
             return html
         except Exception as e:
+            e = re.findall(r"\(Caused by (.*?)\(", str(e))
             print("错误原因：{}".format(e))
             retry_count -= 1
-    # 出错5次, 删除代理池中代理
+    # 出错3次, 删除代理池中代理
     delete_proxy(proxy)
     return None
 
