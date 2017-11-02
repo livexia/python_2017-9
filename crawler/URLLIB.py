@@ -1,3 +1,5 @@
+# -*- coding: UTF-8 -*-
+
 import urllib.request
 import urllib.error
 import urllib.parse

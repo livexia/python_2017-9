@@ -1,3 +1,5 @@
+# -*- coding: UTF-8 -*-
+
 import rsa
 import binascii
 import base64
