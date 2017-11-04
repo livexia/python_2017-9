@@ -8,12 +8,17 @@ import json
 import http.cookiejar
 import urllib.request
 import urllib.parse
+import gzip
+from io import StringIO
+from io import BytesIO
 import requests
 
 
 def login1(username, password):
     print('这里是login1')
     username = base64.b64encode(username.encode('utf-8')).decode('utf-8')
+    headers = {"User-Agent":"Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.71 Safari/537.36","Content-Type": "application/x-www-form-urlencoded","Host": "login.sina.com.cn", "Origin": "http://open.weibo.com", "Referer": "http://open.weibo.com/wiki/%E6%8E%88%E6%9D%83%E6%9C%BA%E5%88%B6%E8%AF%B4%E6%98%8E","Upgrade-Insecure-Requests": "1", "Accept-Encoding": "gzip"
+    }  # 头
     postData = {
         "entry": "sso",
         "gateway": "1",
@@ -25,16 +30,16 @@ def login1(username, password):
         "su": username,
         "service": "sso",
         "sp": password,
-        "sr": "1440*900",
+        "sr": "1920*1080",
         "encoding": "UTF-8",
         "cdult": "3",
         "domain": "sina.com.cn",
         "prelt": "0",
         "returntype": "TEXT",
-    }   #请求的表单数据
+    }  # 请求的表单数据
     loginURL = r'https://login.sina.com.cn/sso/login.php?client=ssologin.js(v1.4.19)'
     session = requests.Session()
-    res = session.post(loginURL, data = postData)
+    res = session.post(loginURL, data=postData)
     jsonStr = res.content.decode('gbk')
     info = json.loads(jsonStr)
     if info["retcode"] == "0":
@@ -57,14 +62,16 @@ def login1(username, password):
 
 def encode_password(password, servertime, nonce, pubkey):
     rsaPubkey = int(pubkey, 16)
-    RSAKey = rsa.PublicKey(rsaPubkey, 65537) #创建公钥
-    codeStr = str(servertime) + '\t' + str(nonce) + '\n' + str(password) #根据js拼接方式构造明文
-    pwd = rsa.encrypt(codeStr.encode('utf-8'), RSAKey)  #使用rsa进行加密
-    return binascii.b2a_hex(pwd)  #将加密信息转换为16进制。
+    RSAKey = rsa.PublicKey(rsaPubkey, 65537)  # 创建公钥
+    codeStr = str(servertime) + '\t' + str(nonce) + '\n' + str(password)  # 根据js拼接方式构造明文
+    pwd = rsa.encrypt(codeStr.encode('utf-8'), RSAKey)  # 使用rsa进行加密
+    return binascii.b2a_hex(pwd)  # 将加密信息转换为16进制。
+
 
 def encode_username(username):
     su = base64.b64encode(username.encode(encoding="utf-8"))
     return su
+
 
 def login2(username, password):
     print('这里是login2')
@@ -115,7 +122,7 @@ def login2(username, password):
         print('登陆失败：' +
               urllib.parse.unquote_to_bytes(re.findall(r"reason\=(.*?)\"", resp_login)[1]).decode('gb2312') +
               '\n错误代码：' +
-                re.findall(r"retcode\=(.*?)\&", resp_login)[0])
+              re.findall(r"retcode\=(.*?)\&", resp_login)[0])
     else:
         info = re.findall(r"location\.replace\(\'(.*?)\'", resp_login)[0]
         resp_my = opener.open(info).read().decode('gb2312')
@@ -123,14 +130,46 @@ def login2(username, password):
         login_data = json.loads(jsonStr)
         if login_data['result']:
             print("登录成功！")
-            print('用户唯一id：' +
-                  login_data['userinfo']['uniqueid'])
+            print('用户唯一id：' + login_data['userinfo']['uniqueid'])
         else:
             print("登录失败！")
     return opener
 
+
+def get_html(session, url, savetofile = False):
+    html = None
+    retry = 3
+    while (retry > 0):
+        # try:
+        resp = session.get(url)
+        html = resp.text
+        print(html)
+        fname = 'result/' + re.findall(r'com\/([0-9]*)', url)[0] + '.html'
+        with open(fname,'w', encoding='utf-8') as f:
+            f.write(html)
+        if (resp.headers.get('content-encoding', None) == 'gzip'):
+            html = gzip.GzipFile(fileobj=BytesIO(html.encode('utf-8'))).read()
+        break
+        # except requests.RequestException as e:
+        #     print('url error:', e)
+        #     # self.randomSleep(4 - retry)
+        #     retry = retry - 1
+        #     continue
+        # except Exception as e:
+        #     print('error:', e)
+        #     # self.randomSleep(4 - retry)
+        #     retry = retry - 1
+        #     continue
+    return html
+
+
 if __name__ == '__main__':
     print('请登录微博！')
-    username = input('输入账号：')
-    password = input('输入密码：')
-    opener = login2(username,password)
+    # username = input('输入账号：')
+    # password = input('输入密码：')
+    username = "15968801646"
+    password = "xgc123456"
+    opener = login1(username, password)
+    url = r'https://weibo.com/212319908'
+    print(type(url))
+    get_html(opener, url)
