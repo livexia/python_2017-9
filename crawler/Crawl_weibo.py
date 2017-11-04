@@ -12,6 +12,8 @@ import gzip
 from io import StringIO
 from io import BytesIO
 import requests
+from bs4 import BeautifulSoup
+import lxml
 
 
 def login1(username, password):
@@ -136,30 +138,37 @@ def login2(username, password):
     return opener
 
 
-def get_html(session, url, savetofile = False):
+def get_html(session, url, srcsavetofile = False):
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.71 Safari/537.36",
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Origin": "http://open.weibo.com",
+        "Upgrade-Insecure-Requests": "1", "Accept-Encoding": "gzip"
+        }
     html = None
     retry = 3
     while (retry > 0):
-        # try:
-        resp = session.get(url)
-        html = resp.text
-        print(html)
-        fname = 'result/' + re.findall(r'com\/([0-9]*)', url)[0] + '.html'
-        with open(fname,'w', encoding='utf-8') as f:
-            f.write(html)
-        if (resp.headers.get('content-encoding', None) == 'gzip'):
-            html = gzip.GzipFile(fileobj=BytesIO(html.encode('utf-8'))).read()
-        break
-        # except requests.RequestException as e:
-        #     print('url error:', e)
-        #     # self.randomSleep(4 - retry)
-        #     retry = retry - 1
-        #     continue
-        # except Exception as e:
-        #     print('error:', e)
-        #     # self.randomSleep(4 - retry)
-        #     retry = retry - 1
-        #     continue
+        try:
+            resp = session.get(url, headers = headers)
+            html = resp.text
+            soup = BeautifulSoup(html, 'lxml')
+            username = soup.h1
+            print(username)
+            if srcsavetofile:
+                filepath = 'result/' + re.findall(r'com\/([0-9]*)', url)[0] + '.html'
+                with open(filepath, 'w', encoding='utf-8') as f:
+                    f.write(html)
+            break
+        except requests.RequestException as e:
+            print('url error:', e)
+            # self.randomSleep(4 - retry)
+            retry = retry - 1
+            continue
+        except Exception as e:
+            print('error:', e)
+            # self.randomSleep(4 - retry)
+            retry = retry - 1
+            continue
     return html
 
 
@@ -171,5 +180,4 @@ if __name__ == '__main__':
     password = "xgc123456"
     opener = login1(username, password)
     url = r'https://weibo.com/212319908'
-    print(type(url))
     get_html(opener, url)
