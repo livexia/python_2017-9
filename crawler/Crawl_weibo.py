@@ -5,6 +5,7 @@ import binascii
 import base64
 import re
 import json
+import os
 import http.cookiejar
 import urllib.request
 import urllib.parse
@@ -14,6 +15,7 @@ from io import BytesIO
 import requests
 from bs4 import BeautifulSoup
 import lxml
+from selenium import webdriver
 
 
 def login1(username, password):
@@ -150,23 +152,60 @@ def get_html(session, url, srcsavetofile = False):
     while (retry > 0):
         try:
             resp = session.get(url, headers = headers)
-            html = resp.text
-            soup = BeautifulSoup(html, 'lxml')
-            username = soup.h1
-            print(username)
+            srchtml = resp.text
+
+            soup = BeautifulSoup(resp.content, 'lxml')
+            username = soup.find_all("h1", {"class", "username"})
             if srcsavetofile:
-                filepath = 'result/' + re.findall(r'com\/([0-9]*)', url)[0] + '.html'
+                filepath = 'result/' + re.findall(r'weibo[\.\/][comn\/u]*\/([0-9]*)', url)[0] + '.html'
                 with open(filepath, 'w', encoding='utf-8') as f:
-                    f.write(html)
+                    for item in html:
+                        f.write(item)
             break
         except requests.RequestException as e:
             print('url error:', e)
-            # self.randomSleep(4 - retry)
             retry = retry - 1
             continue
         except Exception as e:
             print('error:', e)
-            # self.randomSleep(4 - retry)
+            retry = retry - 1
+            continue
+    return html
+
+
+def get_html_by_webdriver(session, url):
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.71 Safari/537.36",
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Origin": "http://open.weibo.com",
+        "Upgrade-Insecure-Requests": "1", "Accept-Encoding": "gzip"
+        }
+    html = None
+    retry = 3
+    while (retry > 0):
+        try:
+            resp = session.get(url, headers = headers)
+            srchtml = resp.text
+            filepath = 'result/' + re.findall(r'com\/([0-9]*)', url)[0] + '.html'
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(srchtml)
+            browser = webdriver.PhantomJS()
+            filepath = os.path.abspath(filepath)
+            browser.get('file:///' + filepath)
+            html = browser.page_source
+            browser.quit()
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(html)
+            soup = BeautifulSoup(resp.content, 'lxml')
+            username = soup.find_all("h1", {"class", "username"})
+            print(username)
+            break
+        except requests.RequestException as e:
+            print('url error:', e)
+            retry = retry - 1
+            continue
+        except Exception as e:
+            print('error:', e)
             retry = retry - 1
             continue
     return html
@@ -179,5 +218,8 @@ if __name__ == '__main__':
     username = "15968801646"
     password = "xgc123456"
     opener = login1(username, password)
-    url = r'https://weibo.com/212319908'
-    get_html(opener, url)
+    # url = r'https://weibo.com/212319908'  #pc端
+    # url = r'https://m.weibo.cn/u/2761139954'  #mobile端
+    url = r'https://weibo.cn/212319908'     #wap端
+    get_html_by_webdriver(opener, url)
+    get_html(opener, url, True)
