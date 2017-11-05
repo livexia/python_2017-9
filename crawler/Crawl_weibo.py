@@ -139,7 +139,7 @@ def login2(username, password):
             print("登录失败！")
     return opener
 
-
+#对wap端抓取数据
 def get_html(session, url, srcsavetofile = False):
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.71 Safari/537.36",
@@ -153,14 +153,23 @@ def get_html(session, url, srcsavetofile = False):
         try:
             resp = session.get(url, headers = headers)
             srchtml = resp.text
-
-            soup = BeautifulSoup(resp.content, 'lxml')
-            username = soup.find_all("h1", {"class", "username"})
             if srcsavetofile:
                 filepath = 'result/' + re.findall(r'weibo[\.\/][comn\/u]*\/([0-9]*)', url)[0] + '.html'
                 with open(filepath, 'w', encoding='utf-8') as f:
-                    for item in html:
-                        f.write(item)
+                    f.write(srchtml)
+            soup = BeautifulSoup(resp.content, 'lxml')
+            info = []
+            for item in soup.find("div", {"class", "ut"}).find_all("span"):
+                if item["class"][0] == "ctt":
+                    for str in item.strings:
+                        info.append(str.strip())
+                else:
+                    info.append(item.string)
+            for item in soup.find("div", {"class", "tip2"}).find_all("a"):
+                info.append(item.string)
+            print(info)
+            page = soup.find("div", {"id", "pagelist"})
+            print(page)
             break
         except requests.RequestException as e:
             print('url error:', e)
@@ -172,7 +181,7 @@ def get_html(session, url, srcsavetofile = False):
             continue
     return html
 
-
+#PhantomJs+Selenium的学习部分
 def get_html_by_webdriver(session, url):
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.71 Safari/537.36",
@@ -210,16 +219,14 @@ def get_html_by_webdriver(session, url):
             continue
     return html
 
-
+#入口
 if __name__ == '__main__':
     print('请登录微博！')
-    # username = input('输入账号：')
-    # password = input('输入密码：')
-    username = "15968801646"
-    password = "xgc123456"
+    username = input('输入账号：')
+    password = input('输入密码：')
     opener = login1(username, password)
     # url = r'https://weibo.com/212319908'  #pc端
     # url = r'https://m.weibo.cn/u/2761139954'  #mobile端
-    url = r'https://weibo.cn/212319908'     #wap端
-    get_html_by_webdriver(opener, url)
+    url = r'https://weibo.cn/2761139954'     #wap端
+    # get_html_by_webdriver(opener, url)
     get_html(opener, url, True)
