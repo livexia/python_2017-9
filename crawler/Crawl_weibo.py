@@ -139,7 +139,7 @@ def login2(username, password):
             print("登录失败！")
     return opener
 
-#对wap端抓取数据
+#TODO:对wap端抓取数据
 def get_html(session, url, srcsavetofile = False):
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.71 Safari/537.36",
@@ -168,8 +168,11 @@ def get_html(session, url, srcsavetofile = False):
             for item in soup.find("div", {"class", "tip2"}).find_all("a"):
                 info.append(item.string)
             print(info)
-            page = soup.find("div", {"id", "pagelist"})
-            print(page)
+            #TODO:获取微博静态页数
+            # page = soup.find("div", {"id", "pagelist"})   #获取微博静态页数
+            # print(page)
+            #TODO:获取用户微博主体信息
+            #TODO:保存信息到filepath.txt中
             break
         except requests.RequestException as e:
             print('url error:', e)
