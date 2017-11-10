@@ -6,6 +6,7 @@ import base64
 import re
 import json
 import os
+import sys
 import http.cookiejar
 import urllib.request
 import urllib.parse
@@ -20,11 +21,11 @@ from selenium import webdriver
 
 def login1(username, password):
     print('这里是login1')
-    username = base64.b64encode(username.encode('utf-8')).decode('utf-8')
+    # username = base64.b64encode(username.encode('utf-8')).decode('utf-8')
     headers = {"User-Agent":"Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.71 Safari/537.36","Content-Type": "application/x-www-form-urlencoded","Host": "login.sina.com.cn", "Origin": "http://open.weibo.com", "Referer": "http://open.weibo.com/wiki/%E6%8E%88%E6%9D%83%E6%9C%BA%E5%88%B6%E8%AF%B4%E6%98%8E","Upgrade-Insecure-Requests": "1", "Accept-Encoding": "gzip"
     }  # 头
     postData = {
-        "entry": "sso",
+        "entry": "mweibo",
         "gateway": "1",
         "from": "null",
         "savestate": "30",
@@ -43,13 +44,18 @@ def login1(username, password):
     }  # 请求的表单数据
     loginURL = r'https://login.sina.com.cn/sso/login.php?client=ssologin.js(v1.4.19)'
     session = requests.Session()
-    res = session.post(loginURL, data=postData)
+    res = session.post(loginURL, data=postData, headers = headers)
     jsonStr = res.content.decode('gbk')
+    print(jsonStr)
+    exit()
     info = json.loads(jsonStr)
     if info["retcode"] == "0":
         res1 = session.get(info['crossDomainUrlList'][0]).content.decode('gb2312')
+        print(info['crossDomainUrlList'][0])
+        exit(0)
         jsonStr = re.findall(r'\((\{.*?\})\)', res1)[0]
         login_data = json.loads(jsonStr)
+        print(login_data)
         if login_data['result']:
             print("登录成功！")
             # 把cookies添加到headers中
@@ -129,6 +135,8 @@ def login2(username, password):
               re.findall(r"retcode\=(.*?)\&", resp_login)[0])
     else:
         info = re.findall(r"location\.replace\(\'(.*?)\'", resp_login)[0]
+        print(info)
+        exit()
         resp_my = opener.open(info).read().decode('gb2312')
         jsonStr = re.findall(r'\((\{.*?\})\)', resp_my)[0]
         login_data = json.loads(jsonStr)
@@ -138,6 +146,61 @@ def login2(username, password):
         else:
             print("登录失败！")
     return opener
+
+def login_towap(username, password):
+    print("这里是login_towap")
+    headers = {
+        'Host': 'passport.weibo.cn',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:56.0) Gecko/20100101 Firefox/56.0',
+        'Accept': '*/*',
+        'Accept-Language':
+        'zh-CN,en-US;q=0.7,en;q=0.3',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Referer': 'https://passport.weibo.cn/signin/login?entry=mweibo&r=http%3A%2F%2Fweibo.cn%2F&backTitle=%CE%A2%B2%A9&vt=',
+        'Connection': 'keep-alive'
+    }
+    postData = {
+        "username": username,
+        "password": password,
+        "savestate": "1",
+        "r": "http://weibo.cn/",
+        "ec": "0",
+        "pagerefer": "",
+        "entry": "mweibo",
+        "wentry": "",
+        "loginfrom": "",
+        "client_id": "",
+        "code": "",
+        "qq": "",
+        "mainpageflag": "1",
+        "hff": "",
+        "hfp": ""
+    }
+    loginURL = r'https://passport.weibo.cn/sso/login'
+    session = requests.Session()
+    resp = session.post(loginURL, data=postData, headers = headers)
+    jsonStr = resp.content.decode('gbk')
+    info = json.loads(jsonStr)
+    if info["retcode"] == 20000000:
+        status = 0
+        urllist = info['data']['crossdomainlist'].values()
+        for url in urllist:
+            resp = session.get(url)
+            if '"retcode":20000000' in resp.text:
+                status += 1
+        if status == 3:
+            print("登录成功！")
+            cookies = session.cookies.get_dict()
+            cookies = [key + "=" + value for key, value in cookies.items()]
+            cookies = "; ".join(cookies)
+            session.headers["cookie"] = cookies
+        else:
+            print("登陆失败")
+    else:
+        print("登录失败，原因： %s" % info["msg"])
+    return session
+
 
 #TODO:对wap端抓取数据
 def get_html(session, url, srcsavetofile = False):
@@ -151,10 +214,10 @@ def get_html(session, url, srcsavetofile = False):
     retry = 3
     while (retry > 0):
         try:
-            resp = session.get(url, headers = headers)
+            resp = session.get(url)
             srchtml = resp.text
             if srcsavetofile:
-                filepath = 'result/' + re.findall(r'weibo[\.\/][comn\/u]*\/([0-9]*)', url)[0] + '.html'
+                filepath = 'crawler/result/' + re.findall(r'weibo[\.\/][comn\/u]*\/([0-9]*)', url)[0] + '.html'
                 with open(filepath, 'w', encoding='utf-8') as f:
                     f.write(srchtml)
             soup = BeautifulSoup(resp.content, 'lxml')
@@ -168,9 +231,8 @@ def get_html(session, url, srcsavetofile = False):
             for item in soup.find("div", {"class", "tip2"}).find_all("a"):
                 info.append(item.string)
             print(info)
-            #TODO:获取微博静态页数
-            # page = soup.find("div", {"id", "pagelist"})   #获取微博静态页数
-            # print(page)
+            page = soup.find("div", id="pagelist").find("input", type = "hidden")['value']   #获取微博静态页数
+            print(page)
             #TODO:获取用户微博主体信息
             #TODO:保存信息到filepath.txt中
             break
@@ -183,6 +245,9 @@ def get_html(session, url, srcsavetofile = False):
             retry = retry - 1
             continue
     return html
+
+
+
 
 #PhantomJs+Selenium的学习部分
 def get_html_by_webdriver(session, url):
@@ -223,13 +288,20 @@ def get_html_by_webdriver(session, url):
     return html
 
 #入口
-if __name__ == '__main__':
+def main():
     print('请登录微博！')
-    username = input('输入账号：')
-    password = input('输入密码：')
-    opener = login1(username, password)
+    if sys.argv[1] == '' or sys.argv[2] == '':
+        username = input('输入账号：')
+        password = input('输入密码：')
+    else:
+        username = sys.argv[1]
+        password = sys.argv[2]
+    opener = login_towap(username, password)
     # url = r'https://weibo.com/212319908'  #pc端
     # url = r'https://m.weibo.cn/u/2761139954'  #mobile端
     url = r'https://weibo.cn/2761139954'     #wap端
     # get_html_by_webdriver(opener, url)
     get_html(opener, url, True)
+
+
+main()
