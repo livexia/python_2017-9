@@ -16,7 +16,13 @@ from io import BytesIO
 import requests
 from bs4 import BeautifulSoup
 import lxml
+import random
+# from PIL import Image
+import subprocess
 from selenium import webdriver
+from General import *
+
+
 
 
 def login1(username, password):
@@ -68,6 +74,25 @@ def login1(username, password):
     else:
         print("登录失败，原因： %s" % info["reason"])
     return session
+
+# def __process_verify_code(pcid):
+#     url = 'http://login.sina.com.cn/cgi/pin.php?r={randint}&s=0&p={pcid}'.format(
+#         randint=int(random.random() * 1e8), pcid=pcid)
+#     filename = 'pin.png'
+#     if os.path.isfile(filename):
+#         os.remove(filename)
+#
+#     urllib.urlretrieve(url, filename)
+#     if os.path.isfile(filename):  # get verify code successfully
+#         #  display the code and require to input
+#
+#         proc = subprocess.Popen(['display', filename])
+#         code = raw_input('请输入验证码:')
+#         os.remove(filename)
+#         proc.kill()
+#         return dict(pcid=pcid, door=code)
+#     else:
+#         return dict()
 
 
 def encode_password(password, servertime, nonce, pubkey):
@@ -177,11 +202,14 @@ def login_towap(username, password):
         "hff": "",
         "hfp": ""
     }
+    url_prelogin = r'https://login.sina.com.cn/sso/prelogin.php?checkpin=1&entry=mweibo&su=' + base64.b64encode(username.encode(encoding="utf-8")).decode('utf-8') + '&callback=jsonpcallback'
     loginURL = r'https://passport.weibo.cn/sso/login'
     session = requests.Session()
     resp = session.post(loginURL, data=postData, headers = headers)
     jsonStr = resp.content.decode('gbk')
     info = json.loads(jsonStr)
+    print(info)
+    print(session.get(url_prelogin).text)
     if info["retcode"] == 20000000:
         status = 0
         urllist = info['data']['crossdomainlist'].values()
@@ -197,54 +225,94 @@ def login_towap(username, password):
             session.headers["cookie"] = cookies
         else:
             print("登陆失败")
+    elif info['retcode'] == 50011005:
+        print('需要输入验证码')
     else:
         print("登录失败，原因： %s" % info["msg"])
     return session
 
 
 #TODO:对wap端抓取数据
-def get_html(session, url, srcsavetofile = False):
+def get_html(session, url, savetofile = True):
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.71 Safari/537.36",
         "Content-Type": "application/x-www-form-urlencoded",
         "Origin": "http://open.weibo.com",
         "Upgrade-Insecure-Requests": "1", "Accept-Encoding": "gzip"
         }
-    html = None
-    retry = 3
-    while (retry > 0):
-        try:
-            resp = session.get(url)
-            srchtml = resp.text
-            if srcsavetofile:
-                filepath = 'crawler/result/' + re.findall(r'weibo[\.\/][comn\/u]*\/([0-9]*)', url)[0] + '.html'
-                with open(filepath, 'w', encoding='utf-8') as f:
-                    f.write(srchtml)
-            soup = BeautifulSoup(resp.content, 'lxml')
-            info = []
-            for item in soup.find("div", {"class", "ut"}).find_all("span"):
-                if item["class"][0] == "ctt":
-                    for str in item.strings:
-                        info.append(str.strip())
-                else:
-                    info.append(item.string)
-            for item in soup.find("div", {"class", "tip2"}).find_all("a"):
-                info.append(item.string)
-            print(info)
-            page = soup.find("div", id="pagelist").find("input", type = "hidden")['value']   #获取微博静态页数
-            print(page)
-            #TODO:获取用户微博主体信息
-            #TODO:保存信息到filepath.txt中
+
+    uid = re.findall(r'weibo[\.\/][comn\/u]*\/([0-9]*)', url)[0]
+    info_url = 'https://weibo.cn/' + uid + '/info'
+    filepath = 'crawler/result/' + re.findall(r'weibo[\.\/][comn\/u]*\/([0-9]*)', url)[0] + '.json'
+
+    resp = session.get(info_url)
+    soup = BeautifulSoup(resp.content, 'lxml')
+
+    info_dict = {}
+    info_dict['_id'] = uid
+    for item in soup.find_all("div", {'class': 'c'})[3].find_all('br'):
+        info = item.previous_sibling
+        info = re.split(r"[:\：]", info, 1)
+        info_dict[info[0]] = info[1]
+        if "简介" in info:
             break
-        except requests.RequestException as e:
-            print('url error:', e)
-            retry = retry - 1
-            continue
-        except Exception as e:
-            print('error:', e)
-            retry = retry - 1
-            continue
-    return html
+
+    insert_into_mongdb("weibo", "userinfo", info_dict)
+
+    resp = session.get(url)
+    soup = BeautifulSoup(resp.content, 'lxml')
+    page = int(soup.find("div", id="pagelist").find("input", type = "hidden")['value'])   #获取微博静态页数
+
+    print(page)
+
+    #TODO:获取用户微博主体信息
+    if savetofile:
+        with open(filepath, 'w', encoding='utf-8') as f:
+            pass
+    for i in range(1, page + 1):
+        url_with_page = url + '?page={}'.format(i)
+        print("正在爬取第{}页！".format(i))
+        resp = session.get(url_with_page)
+        soup = BeautifulSoup(resp.content, 'lxml')
+        weibolist = soup.find_all("div", {"class", "c"})
+        weibolist.pop(0)
+        weibolist.pop()
+        weibolist.pop()
+        weibo_dict = {}
+        for item in weibolist:
+            j = 0
+            weibo_dict = {}
+            weibo = []
+            weiboinfo = []
+            for span in item.find_all("span"):
+                weibo.append(span.text)
+                try:
+                    if span.find('a') != None:
+                        weibo.append(span.find("a")['href'])
+                except Exception as e:
+                    print("\nerror: ", e)
+                    print(span.text)
+                    exit()
+            for a in item.find_all("a"):
+                if a.text == "原图":
+                    weibo.append("图片：" + a['href'])
+                elif a.text != "收藏" and a.text != '':
+                    weiboinfo.append(a.text)
+            weibo_dict['_id'] = uid + str(page) + str(j)
+            weibo_dict['content'] = weibo
+            weibo_dict['weiboinfo'] = weiboinfo
+            print(u"\u2714", end = "")
+            insert_into_mongdb("weibo", "weibocontents", weibo_dict)
+            j += 1
+            if savetofile:
+                # filepath = 'crawler/result/' + re.findall(r'weibo[\.\/][comn\/u]*\/([0-9]*)', url)[0] + '.txt'
+                # if i == 1:
+                #     with open(filepath, 'w', encoding='utf-8') as f:
+                #         for item in weibo_dict:
+                #             f.write(item + '\n')
+                # else:
+                with open(filepath, 'a', encoding='utf-8') as f:
+                    f.write(json.dumps(weibo_dict))
 
 
 
