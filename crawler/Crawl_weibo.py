@@ -279,8 +279,8 @@ def get_html(session, url, savetofile = True):
         weibolist.pop()
         weibolist.pop()
         weibo_dict = {}
+        j = 0
         for item in weibolist:
-            j = 0
             weibo_dict = {}
             weibo = []
             weiboinfo = []
@@ -298,7 +298,7 @@ def get_html(session, url, savetofile = True):
                     weibo.append("图片：" + a['href'])
                 elif a.text != "收藏" and a.text != '':
                     weiboinfo.append(a.text)
-            weibo_dict['_id'] = uid + str(page) + str(j)
+            weibo_dict['_id'] = uid + str(i) + str(j)
             weibo_dict['content'] = weibo
             weibo_dict['weiboinfo'] = weiboinfo
             print(u"\u2714", end = "")
