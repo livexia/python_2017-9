@@ -305,12 +305,6 @@ def get_html(session, url, savetofile = True):
             insert_into_mongdb("weibo", "weibocontents", weibo_dict)
             j += 1
             if savetofile:
-                # filepath = 'crawler/result/' + re.findall(r'weibo[\.\/][comn\/u]*\/([0-9]*)', url)[0] + '.txt'
-                # if i == 1:
-                #     with open(filepath, 'w', encoding='utf-8') as f:
-                #         for item in weibo_dict:
-                #             f.write(item + '\n')
-                # else:
                 with open(filepath, 'a', encoding='utf-8') as f:
                     f.write(json.dumps(weibo_dict))
 
