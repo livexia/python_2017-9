@@ -210,6 +210,7 @@ def login_towap(username, password):
     loginURL = r'https://passport.weibo.cn/sso/login'
     session = requests.Session()
 
+    #TODO 验证码输入
     pre_login=session.get(url_prelogin).content.decode('gbk')
     prelogin_info = json.loads(re.findall(r'\((\{.*?\})\)', pre_login)[0])
     if prelogin_info['showpin'] == 1:
@@ -345,7 +346,7 @@ def login(username, password):
 
     return session
 
-#TODO:对wap端抓取数据
+
 def get_html(session, url, savetofile = True):
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.71 Safari/537.36",
@@ -378,7 +379,6 @@ def get_html(session, url, savetofile = True):
 
     print(page)
 
-    #TODO:获取用户微博主体信息
     if savetofile:
         with open(filepath, 'w', encoding='utf-8') as f:
             pass
@@ -426,7 +426,7 @@ def get_html(session, url, savetofile = True):
 
 
 
-#PhantomJs+Selenium的学习部分
+# TODO PhantomJs+Selenium的学习部分
 def get_html_by_webdriver(session, url):
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.71 Safari/537.36",
@@ -473,7 +473,7 @@ def main():
     else:
         username = sys.argv[1]
         password = sys.argv[2]
-    opener = login(username, password)
+    opener = login_towap(username, password)
     # url = r'https://weibo.com/212319908'  #pc端
     # url = r'https://m.weibo.cn/u/2761139954'  #mobile端
     # url1 = r'https://weibo.cn/2761139954'     #wap端
