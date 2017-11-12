@@ -176,6 +176,7 @@ def login2(username, password):
             print("登录失败！")
     return opener
 
+
 def login_towap(username, password):
     print("这里是login_towap")
     headers = {
@@ -244,8 +245,10 @@ def login_towap(username, password):
     #     exit()
     return session
 
+
 def login(username, password):
     print('这里是login')
+    ticket = None
     headers = {
         'Host': 'passport.weibo.cn',
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:56.0) Gecko/20100101 Firefox/56.0',
@@ -341,9 +344,17 @@ def login(username, password):
         if login_data['result']:
             print("登录成功！")
             print('用户唯一id：' + login_data['userinfo']['uniqueid'])
+
+            loginurl = "https://login.sina.com.cn/sso/login.php?url=https%3A%2F%2Fweibo.cn%2Fpub%2F"
+            url = session.get(loginurl).text
+            url = re.findall(r"(https.*?)\"\)", url)[0]
+            if "登陆" not in session.get(url).text:
+                print("登陆阶段完成")
+                exit()
+            else:
+                print("登陆阶段失败")
         else:
             print("登录失败！")
-
     return session
 
 
@@ -424,8 +435,6 @@ def get_html(session, url, savetofile = True):
         time.sleep(2)
 
 
-
-
 # TODO PhantomJs+Selenium的学习部分
 def get_html_by_webdriver(session, url):
     headers = {
@@ -473,17 +482,17 @@ def main():
     else:
         username = sys.argv[1]
         password = sys.argv[2]
-    opener = login_towap(username, password)
+    session = login(username, password)
     # url = r'https://weibo.com/212319908'  #pc端
     # url = r'https://m.weibo.cn/u/2761139954'  #mobile端
     # url1 = r'https://weibo.cn/2761139954'     #wap端
+
     url = [
         r'https://weibo.cn/2761139954',
         r'https://weibo.cn/1765335300'
     ]
-    # get_html_by_webdriver(opener, url)
     for u in url:
-        get_html(opener, u, True)
+        get_html(session, u, True)
 
 
 main()
