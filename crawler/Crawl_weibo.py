@@ -1,5 +1,6 @@
 # -*- coding: UTF-8 -*-
 
+import time
 import rsa
 import binascii
 import base64
@@ -21,13 +22,15 @@ import random
 import subprocess
 from selenium import webdriver
 from General import *
+from PIL import Image
+import subprocess
 
 
 
 
 def login1(username, password):
     print('这里是login1')
-    # username = base64.b64encode(username.encode('utf-8')).decode('utf-8')
+    username = base64.b64encode(username.encode('utf-8')).decode('utf-8')
     headers = {"User-Agent":"Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.71 Safari/537.36","Content-Type": "application/x-www-form-urlencoded","Host": "login.sina.com.cn", "Origin": "http://open.weibo.com", "Referer": "http://open.weibo.com/wiki/%E6%8E%88%E6%9D%83%E6%9C%BA%E5%88%B6%E8%AF%B4%E6%98%8E","Upgrade-Insecure-Requests": "1", "Accept-Encoding": "gzip"
     }  # 头
     postData = {
@@ -75,24 +78,25 @@ def login1(username, password):
         print("登录失败，原因： %s" % info["reason"])
     return session
 
-# def __process_verify_code(pcid):
-#     url = 'http://login.sina.com.cn/cgi/pin.php?r={randint}&s=0&p={pcid}'.format(
-#         randint=int(random.random() * 1e8), pcid=pcid)
-#     filename = 'pin.png'
-#     if os.path.isfile(filename):
-#         os.remove(filename)
-#
-#     urllib.urlretrieve(url, filename)
-#     if os.path.isfile(filename):  # get verify code successfully
-#         #  display the code and require to input
-#
-#         proc = subprocess.Popen(['display', filename])
-#         code = raw_input('请输入验证码:')
-#         os.remove(filename)
-#         proc.kill()
-#         return dict(pcid=pcid, door=code)
-#     else:
-#         return dict()
+
+def process_verify_code(session, pcid):
+    url = 'http://login.sina.com.cn/cgi/pin.php?r={randint}&s=0&p={pcid}'.format(
+        randint=int(random.random() * 1e8), pcid=pcid)
+    filename = 'crawler/image/verify_code/{}.png'.format(pcid)
+    if os.path.isfile(filename):
+        os.remove(filename)
+    resp = session.get(url)
+    if resp.status_code == 200:
+        with open(filename, 'wb') as f:
+            f.write(resp.content)
+    if os.path.isfile(filename):  # get verify code successfully
+        with Image.open(filename) as verify_code:
+            verify_code.show()
+            code = input('请输入验证码:')
+        os.remove(filename)
+        return dict(pcid=pcid, door=code)
+    else:
+        return dict()
 
 
 def encode_password(password, servertime, nonce, pubkey):
@@ -205,11 +209,19 @@ def login_towap(username, password):
     url_prelogin = r'https://login.sina.com.cn/sso/prelogin.php?checkpin=1&entry=mweibo&su=' + base64.b64encode(username.encode(encoding="utf-8")).decode('utf-8') + '&callback=jsonpcallback'
     loginURL = r'https://passport.weibo.cn/sso/login'
     session = requests.Session()
-    resp = session.post(loginURL, data=postData, headers = headers)
+
+    pre_login=session.get(url_prelogin).content.decode('gbk')
+    prelogin_info = json.loads(re.findall(r'\((\{.*?\})\)', pre_login)[0])
+    if prelogin_info['showpin'] == 1:
+        print('需要输入验证码')
+        postData.update(process_verify_code(session, prelogin_info['pcid']))
+    print(postData)
+
+    resp = session.post(loginURL, data=postData, headers=headers)
     jsonStr = resp.content.decode('gbk')
     info = json.loads(jsonStr)
     print(info)
-    print(session.get(url_prelogin).text)
+
     if info["retcode"] == 20000000:
         status = 0
         urllist = info['data']['crossdomainlist'].values()
@@ -225,12 +237,113 @@ def login_towap(username, password):
             session.headers["cookie"] = cookies
         else:
             print("登陆失败")
-    elif info['retcode'] == 50011005:
-        print('需要输入验证码')
-    else:
-        print("登录失败，原因： %s" % info["msg"])
+            exit()
+    # else:
+    #     print("登录失败，原因： %s" % info["msg"])
+    #     exit()
     return session
 
+def login(username, password):
+    print('这里是login')
+    headers = {
+        'Host': 'passport.weibo.cn',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:56.0) Gecko/20100101 Firefox/56.0',
+        'Accept': '*/*',
+        'Accept-Language':
+            'zh-CN,en-US;q=0.7,en;q=0.3',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Referer': 'https://passport.weibo.cn/signin/login?entry=mweibo&r=http%3A%2F%2Fweibo.cn%2F&backTitle=%CE%A2%B2%A9&vt=',
+        'Connection': 'keep-alive'
+    }
+
+    session = requests.Session()
+    su = encode_username(username)
+
+    preData = {
+        "entry": "sso",
+        "callback": "sinaSSOController.preloginCallBack",
+        "su": su,
+        "rsakt": "mod",
+        "checkpin": "1",
+        "client": "ssologin.js(v1.4.15)",
+        "_": int(time.time() * 1000)
+    }
+
+    url_prelogin = 'https://login.sina.com.cn/sso/prelogin.php'
+    url_login = 'https://login.sina.com.cn/sso/login.php?client=ssologin.js'
+    prelogin = session.get(url_prelogin, params=preData).content.decode('gbk')
+    prelogin_info = json.loads(re.findall(r'\((\{.*?\})\)', prelogin)[0])
+    sp = encode_password(password, prelogin_info['servertime'], prelogin_info['nonce'], prelogin_info['pubkey'])
+
+    if prelogin_info['showpin'] == 1:
+        print('需要输入验证码')
+        postData = {
+            'entry': 'weibo',
+            'gateway': '1',
+            'from': '',
+            'savestate': '7',
+            'userticket': '1',
+            'ssosimplelogin': '1',
+            'pcid': '',
+            'door': '',
+            'vsnf': '1',
+            'vsnval': '',
+            'su': su,
+            'service': 'miniblog',
+            'servertime': prelogin_info['servertime'],
+            'nonce': prelogin_info['nonce'],
+            'pwencode': 'rsa2',
+            'sp': sp,
+            'encoding': 'UTF-8',
+            'url': 'http://weibo.com/ajaxlogin.php?framelogin=1&callback=parent.sinaSSOController.feedBackUrlCallBack',
+            'returntype': 'META',
+            'rsakv': prelogin_info['rsakv'],
+        }
+        postData.update(process_verify_code(session, prelogin_info['pcid']))
+    else:
+        postData = {
+            'entry': 'weibo',
+            'gateway': '1',
+            'from': '',
+            'savestate': '7',
+            'userticket': '1',
+            'ssosimplelogin': '1',
+            'pcid': '',
+            'door': '',
+            'vsnf': '1',
+            'vsnval': '',
+            'su': su,
+            'service': 'miniblog',
+            'servertime': prelogin_info['servertime'],
+            'nonce': prelogin_info['nonce'],
+            'pwencode': 'rsa2',
+            'sp': sp,
+            'encoding': 'UTF-8',
+            'url': 'http://weibo.com/ajaxlogin.php?framelogin=1&callback=parent.sinaSSOController.feedBackUrlCallBack',
+            'returntype': 'META',
+            'rsakv': prelogin_info['rsakv'],
+        }
+
+    resp_login = session.post(url_login, data=postData)
+    final_url = re.findall(r'(http[^s].*?)\"\)', resp_login.text)[0].replace("%2F", "/").replace("%3F", "?").replace("%3D", "=").replace("%26", "&").replace("%3A",":")
+    resp_final = session.get(final_url)
+
+    if re.findall(r"reason\=(.*?)\"", resp_login.text):
+        print('登陆失败：' +
+              urllib.parse.unquote_to_bytes(re.findall(r"reason\=(.*?)\"", resp_login.text)[1]).decode('gb2312') +
+              '\n错误代码：' +
+              re.findall(r"retcode\=(.*?)\&", resp_login.text)[0])
+    else:
+        jsonStr = re.findall(r'\((\{.*?\})\)', resp_final.text)[0]
+        login_data = json.loads(jsonStr)
+        if login_data['result']:
+            print("登录成功！")
+            print('用户唯一id：' + login_data['userinfo']['uniqueid'])
+        else:
+            print("登录失败！")
+
+    return session
 
 #TODO:对wap端抓取数据
 def get_html(session, url, savetofile = True):
@@ -298,7 +411,8 @@ def get_html(session, url, savetofile = True):
                     weibo.append("图片：" + a['href'])
                 elif a.text != "收藏" and a.text != '':
                     weiboinfo.append(a.text)
-            weibo_dict['_id'] = uid + str(i) + str(j)
+            weibo_dict['_id'] = item.get('id')
+            weibo_dict['uid'] = uid
             weibo_dict['content'] = weibo
             weibo_dict['weiboinfo'] = weiboinfo
             print(u"\u2714", end = "")
@@ -307,6 +421,7 @@ def get_html(session, url, savetofile = True):
             if savetofile:
                 with open(filepath, 'a', encoding='utf-8') as f:
                     f.write(json.dumps(weibo_dict))
+        time.sleep(2)
 
 
 
@@ -358,12 +473,17 @@ def main():
     else:
         username = sys.argv[1]
         password = sys.argv[2]
-    opener = login_towap(username, password)
+    opener = login(username, password)
     # url = r'https://weibo.com/212319908'  #pc端
     # url = r'https://m.weibo.cn/u/2761139954'  #mobile端
-    url = r'https://weibo.cn/2761139954'     #wap端
+    # url1 = r'https://weibo.cn/2761139954'     #wap端
+    url = [
+        r'https://weibo.cn/2761139954',
+        r'https://weibo.cn/1765335300'
+    ]
     # get_html_by_webdriver(opener, url)
-    get_html(opener, url, True)
+    for u in url:
+        get_html(opener, u, True)
 
 
 main()
