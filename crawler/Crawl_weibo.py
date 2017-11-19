@@ -187,29 +187,37 @@ class crawl_weibo:
                 if "简介" in info:
                     break
             insert_into_mongdb("weibo", "userinfo", info_dict)
-
-            resp = self.session.get(url)
-            soup = BeautifulSoup(resp.content, 'lxml')
-            page = int(soup.find("div", id="pagelist").find("input", type="hidden")['value'])  # 获取微博静态页数
-            self.stopinfo['total_page'] = page
         else:
             uid = self.stopinfo['uid']
             lastpage = int(self.stopinfo['page'])
 
+        resp = self.session.get(url)
+        soup = BeautifulSoup(resp.content, 'lxml')
+        page = int(soup.find("div", id="pagelist").find("input", type="hidden")['value'])  # 获取微博静态页数
+        self.stopinfo['total_page'] = page
+
         filepath = 'crawler/result/' + self.stopinfo['uid'] + '.json'
         self.stopinfo['uid'] = uid
-        page = self.stopinfo['total_page']
 
         if savetofile:
             with open(filepath, 'w', encoding='utf-8') as f:
                 pass
         try:
             for i in range(lastpage, page + 1):
-                with open('breakpoint.json','w') as f:
+                with open('crawler/breakpoint.json','w') as f:
                     json.dump(self.stopinfo, f)
                 url_with_page = url + '?page={}'.format(i)
                 print("正在爬取第{}页！".format(i))
-                resp = self.session.get(url_with_page)
+                try:
+                    proxy = get_proxy()
+                    html = requests.get('https://ident.me/', proxies=proxy)
+                    if html.text == re.findall(r'\/\/(.*?)\:', proxy)[0]:
+                        proxy = get_proxy()
+                    else:
+                        proxy = None
+                except Exception:
+                    proxy = None
+                resp = self.session.get(url_with_page, proxies=proxy)
                 soup = BeautifulSoup(resp.content, 'lxml')
                 weibolist = soup.find_all("div", {"class", "c"})
                 weibolist.pop(0)
@@ -254,9 +262,8 @@ class crawl_weibo:
 
 #入口
 def main():
-
     if input("是否从根目录breakpoint.json中读取断点[y/n]：") == 'y':
-        with open('breakpoint.json','r') as f:
+        with open('crawler/breakpoint.json','r') as f:
             stopinfo = json.loads(f.read())
             print('断点为：uid为{}的{}页。'.format(stopinfo['uid'], stopinfo['page']))
     else:
