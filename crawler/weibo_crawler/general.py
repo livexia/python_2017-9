@@ -4,6 +4,7 @@ import requests
 import traceback
 import re
 import json
+import pickle
 
 def insert_into_mongdb(database, col, data):
     client = MongoClient('localhost',27018)
@@ -14,8 +15,32 @@ def insert_into_mongdb(database, col, data):
         print(col_id)
     except Exception as e:
         print(r'Insert into mongodb error: ', e)
-    finally:
-        return 0
+        exit(0)
+
+
+def json_to_file(path, data):
+    with open(path, 'w', encoding='utf-8') as f:
+        f.write(json.dumps(data))
+
+
+def append_json_to_file(path, data):
+    with open(path, 'a', encoding='utf-8') as f:
+        f.write(json.dumps(data))
+
+
+def create_file(path):
+    with open(path, 'w', encoding='utf-8') as f:
+        pass
+
+
+def read_json_file(file_name):
+    with open(file_name, 'r') as f:
+        return json.load(f)
+
+
+def delete_file_contents(path):
+    with open(path, 'w').close():
+        pass
 
 
 def get_proxy():
@@ -41,6 +66,3 @@ def getHtml():
             return 'error'
     except Exception:
         return 'error'
-
-while 1:
-    print(getHtml())
