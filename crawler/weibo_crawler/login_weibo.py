@@ -178,7 +178,6 @@ class LoginWeibo():
     def open(self):
         """
         打开网页输入用户名密码并点击
-        :return: None
         """
         url = 'https://passport.weibo.cn/signin/login?entry=mweibo&r=https://m.weibo.cn/'
         self.browser.get(url)
