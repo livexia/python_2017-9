@@ -14,6 +14,7 @@
 
 
 具体：
+
 	1. 本周前几天，我在尝试利用对PC端验证码的图像变换，然后利用OCR技术识别验证码。微博的pc验证码含有旋转和一条曲线，这使得利用图形的方法几乎不可行，垂直投影不能切割。于是我找了很多资料，发现都是类似的，先切分再OCR。
 
 	2. 直接利用图形学的手段不能简单的直接识别验证码，于是我又去看了利用神经卷积网络的方法来做一个识别。这个方法是先有大量的训练数据，然后建立模型，不停训练模型，然后给出结果。我的确获取到了大量的新浪微博验证码，但是靠我对他们进行标记相当的耗时。
@@ -25,5 +26,5 @@
 	5. 本周算是基本上做完了新浪微博爬虫的最复杂的部分，具体数据的爬取这些都可以以后再加上小功能。新浪微博的爬虫到本周就算一个收尾了，代码见github，这里就不贴了。下周将是学习其他的内容。
 
 滑动验证破解参考：
-	1. https://github.com/Python3WebSpider/CrackWeiboSlide
-	2. https://github.com/LiuXingMing/WeiboSliderCode
+>1. https://github.com/Python3WebSpider/CrackWeiboSlide
+>2. https://github.com/LiuXingMing/WeiboSliderCode
