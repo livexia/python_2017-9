@@ -121,11 +121,11 @@ REDIS_ITEMS_KEY = '%(spider)s:items'
 
 # 指定用于连接redis的URL（可选）
 # 如果设置此项，则此项优先级高于设置的REDIS_HOST 和 REDIS_PORT
-REDIS_URL = 'redis://127.0.0.1:6379'
+REDIS_URL = 'redis://192.168.0.115:6379'
 
 # 自定义的redis参数（连接超时之类的）
 # REDIS_PARAMS  = {}
-˚
+
 # 自定义redis客户端类
 # REDIS_PARAMS['redis_cls'] = 'myproject.RedisClient'
 
