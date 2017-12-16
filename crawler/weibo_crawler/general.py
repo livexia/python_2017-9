@@ -5,6 +5,7 @@ import traceback
 import re
 import json
 import pickle
+import logging
 
 def insert_into_mongdb(database, col, data):
     client = MongoClient('localhost',27018)
@@ -12,9 +13,9 @@ def insert_into_mongdb(database, col, data):
     collection = db.get_collection(col)
     try:
         col_id = collection.save(data)
-        print(col_id)
+        print('Insert success _id = {}'.format(col_id))
     except Exception as e:
-        print(r'Insert into mongodb error: ', e)
+        print('Insert into mongodb error: {}'.format(e))
         exit(0)
 
 
