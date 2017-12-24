@@ -1,4 +1,3 @@
-
 # coding: utf-8
 
 # 本周目标：百度贴吧的一个简单爬虫
@@ -22,7 +21,7 @@ def baidu_tieba_topic(save_to_mongodb=False):
     date = datetime.datetime.today().strftime("%Y-%m-%d-%H")
     result = []
     for index,item in enumerate(raw):
-        file_path = 'result/{}.txt'.format(item.find('a', {'class': "topic-text"}).text)
+        file_path = 'result/text/{}.txt'.format(item.find('a', {'class': "topic-text"}).text)
         result.append({
             "date": date,
             "top-rank": index+1,
@@ -38,9 +37,12 @@ def baidu_tieba_topic(save_to_mongodb=False):
         resp = session.get(url)
         raw = BeautifulSoup(resp.content, 'lxml')
         result[index]['selected-feed'] = []
-        for url in raw.find('div', {'id': 'selected-feed'}).find_all(
-            'a', {'class': 'title track-thread-title'}):
-            result[index]['selected-feed'].append(base_url.format(url['href']))
+        try:
+            for url in raw.find('div', {'id': 'selected-feed'}).find_all(
+                    'a', {'class': 'title track-thread-title'}):
+                result[index]['selected-feed'].append(base_url.format(url['href']))
+        except AttributeError as e:
+            print("没有精华帖")
     for item in result:
         with open(item['file_path'], 'wb') as f:
             pass
@@ -86,6 +88,14 @@ def get_content(url, file_path):
             current_page += 1
         with open(file_path, 'a', encoding='utf-8') as f:
             f.write(all_word)
+
+def baidu_tieba_api(result):
+    url = 'http://tieba.baidu.com/hottopic/browse/topicList'
+    resp = requests.get(url)
+    all_topic = json.loads(resp.text)['data']['bang_topic']['topic_list']
+
+    print(all_topic)
+
 
 
 baidu_tieba_topic(save_to_mongodb=False)

@@ -1,66 +1,26 @@
-# encoding: utf-8
+# coding: utf-8
 
-"""
-@author: livexia
-@contact: istillalive@live.cn
-@file: ChineseWordCloud.py
-@time: 2017/12/16 21:12
-@desc:
-"""
-from os import path
-from scipy.misc import imread
+from wordcloud import WordCloud
 import matplotlib.pyplot as plt
+import os
 
-from wordcloud import WordCloud, STOPWORDS, ImageColorGenerator
 
-# 获取当前文件路径
-# __file__ 为当前文件, 在ide中运行此行会报错,可改为
-# d = path.dirname('.')
-d = path.dirname(__file__)
-print(d)
-exit()
-# 读取文本 alice.txt 在包文件的example目录下
-#内容为
-"""
-Project Gutenberg's Alice's Adventures in Wonderland, by Lewis Carroll
+def chinese_word_cloud():
+    font = r'SourceHanSansCN-Light.otf'
+    path = 'result/text'
+    texts = os.listdir(path)
+    for text in texts:
+        file_path = path + '/' + text
+        print(file_path)
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+            if content:
+                wc = WordCloud(collocations=False, font_path=font, width=1400, height=1400, margin=2).generate(content.lower())
 
-This eBook is for the use of anyone anywhere at no cost and with
-almost no restrictions whatsoever.  You may copy it, give it away or
-re-use it under the terms of the Project Gutenberg License included
-with this eBook or online at www.gutenberg.org
-"""
-text = open(path.join(d, 'alice.txt')).read()
+                plt.imshow(wc)
+                plt.axis("off")
+                plt.show()
+                text = text.split('.')[0]
+                wc.to_file('result/image/{}.png'.format(text))  # 把词云保存下来
 
-# read the mask / color image
-# taken from http://jirkavinse.deviantart.com/art/quot-Real-Life-quot-Alice-282261010
-# 设置背景图片
-alice_coloring = imread(path.join(d, "alice_color.png"))
-
-wc = WordCloud(background_color="white", #背景颜色max_words=2000,# 词云显示的最大词数
-mask=alice_coloring,#设置背景图片
-stopwords=STOPWORDS.add("said"),
-max_font_size=40, #字体最大值
-random_state=42)
-# 生成词云, 可以用generate输入全部文本(中文不好分词),也可以我们计算好词频后使用generate_from_frequencies函数
-wc.generate(text)
-# wc.generate_from_frequencies(txt_freq)
-# txt_freq例子为[('词a', 100),('词b', 90),('词c', 80)]
-# 从背景图片生成颜色值
-image_colors = ImageColorGenerator(alice_coloring)
-
-# 以下代码显示图片
-plt.imshow(wc)
-plt.axis("off")
-# 绘制词云
-plt.figure()
-# recolor wordcloud and show
-# we could also give color_func=image_colors directly in the constructor
-plt.imshow(wc.recolor(color_func=image_colors))
-plt.axis("off")
-# 绘制背景图片为颜色的图片
-plt.figure()
-plt.imshow(alice_coloring, cmap=plt.cm.gray)
-plt.axis("off")
-plt.show()
-# 保存图片
-wc.to_file(path.join(d, "名称.png"))
+chinese_word_cloud()
